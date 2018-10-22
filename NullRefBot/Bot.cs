@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
@@ -25,6 +26,10 @@ namespace NullRefBot
 		public static DebugLogger Logger => Instance.Client.DebugLogger;
 		public static Bot Instance => instance ?? (instance = new Bot());
 		private static Bot instance;
+
+		public static readonly Task Done = Task.CompletedTask;
+
+		private static Dictionary<DiscordMessage,ReactionTrigger> reactionTriggers = new Dictionary<DiscordMessage, ReactionTrigger>();
 
 		public async Task RunAsync()
 		{
@@ -56,6 +61,8 @@ namespace NullRefBot
 			Client.ClientErrored += Client_ClientError;
 			Client.MessageCreated += Client_MessageCreated;
 		    Client.GuildMemberAdded+= Client_GuildMemberAdded;
+			Client.MessageReactionAdded += Client_MessageReactionAdded;
+			Client.MessageReactionsCleared += Client_MessageReactionsCleared;
 
             var ccfg = new CommandsNextConfiguration()
 			{
@@ -89,7 +96,7 @@ namespace NullRefBot
 			// since this method is not async, let's return
 			// a completed task, so that no additional work
 			// is done
-			return Task.CompletedTask;
+			return Done;
 		}
 
 		private Task Client_GuildMemberAdded(GuildMemberAddEventArgs e)
@@ -99,21 +106,78 @@ namespace NullRefBot
 			e.Client.DebugLogger.LogMessage(LogLevel.Info, "NRB", $"{e.Member.Username} joined", DateTime.Now);
 		    e.Guild.GetChannel(WELCOME_CHANNEL_ID).SendMessageAsync($"A wild {e.Member.Mention} has appeared!");
 
-            return Task.CompletedTask;
+            return Done;
 		}
 
 		private Task Client_MessageCreated(MessageCreateEventArgs e)
 		{
-			if( e.Author.IsBot ) return Task.CompletedTask; // explicitly ignore bot messages
+			if( e.Author.IsBot ) return Done; // explicitly ignore bot messages
 
 			var isKarmaMessage = ExperienceManager.IsExpMessage( e.Message );
 
 			var gaveKarma = false;
 			if( isKarmaMessage ) {
-				gaveKarma = ExperienceManager.GiveExp( e.Channel, e.Author, e.MentionedUsers );
+				gaveKarma = ExperienceManager.UserToUserGiveExpAndNotify( e.Channel, e.Author, e.MentionedUsers );
 			}
 
-			return Task.CompletedTask;
+			return Done;
+		}
+
+		public ReactionTrigger AddReactionTrigger ( DiscordMessage message, DiscordUser user, ReactionTrigger.OnTriggeredEvent onTrigger = null ) {
+			if( reactionTriggers.ContainsKey( message ) ) {
+				Logger.LogMessage( LogLevel.Warning, "ReactionTrigger", "Can't add more than one trigger to a message at a time.", DateTime.Now );
+				return null;
+			}
+
+			var trigger = new ReactionTrigger();
+			trigger.message = message;
+			trigger.userWhitelist = new[] { user };
+			if( onTrigger != null ) trigger.onTriggered += onTrigger;
+
+			reactionTriggers.Add( message, trigger );
+
+			return trigger;
+		}
+
+		public ReactionTrigger AddReactionTrigger ( DiscordMessage message, params DiscordUser[] userWhitelist ) {
+			if( reactionTriggers.ContainsKey( message ) ) {
+				Logger.LogMessage( LogLevel.Warning, "ReactionTrigger", "Can't add more than one trigger to a message at a time.", DateTime.Now );
+				return null;
+			}
+
+			var trigger = new ReactionTrigger();
+			trigger.message = message;
+			trigger.userWhitelist = userWhitelist;
+
+			reactionTriggers.Add( message, trigger );
+
+			return trigger;
+		}
+
+		internal void RemoveReactionTrigger ( DiscordMessage message ) {
+			reactionTriggers.Remove( message );
+		}
+
+		private Task Client_MessageReactionAdded ( MessageReactionAddEventArgs e ) {
+			if( e.User.IsBot ) return Done; // explicitly ignore bot messages
+
+			if( reactionTriggers.TryGetValue( e.Message, out var trigger ) ) {
+				if( trigger.TryTrigger( e.User, e.Emoji ) ) {
+					if( trigger.oneShot ) {
+						reactionTriggers.Remove( e.Message );
+					}
+				}
+			}
+
+			return Done;
+		}
+
+		private Task Client_MessageReactionsCleared ( MessageReactionsClearEventArgs e ) {
+			if( reactionTriggers.Remove( e.Message ) ) {
+				Logger.LogMessage( LogLevel.Info, "ReactionTrigger", "Removed extraneous reaction trigger as reactions were removed.", DateTime.Now );
+			}
+
+			return Done;
 		}
 
 		private Task Client_GuildAvailable(GuildCreateEventArgs e)
@@ -125,7 +189,7 @@ namespace NullRefBot
 			// since this method is not async, let's return
 			// a completed task, so that no additional work
 			// is done
-			return Task.CompletedTask;
+			return Done;
 		}
 
 		private Task Client_ClientError(ClientErrorEventArgs e)
@@ -137,7 +201,7 @@ namespace NullRefBot
 			// since this method is not async, let's return
 			// a completed task, so that no additional work
 			// is done
-			return Task.CompletedTask;
+			return Done;
 		}
 
 		private Task Commands_CommandExecuted(CommandExecutionEventArgs e)
@@ -148,7 +212,7 @@ namespace NullRefBot
 			// since this method is not async, let's return
 			// a completed task, so that no additional work
 			// is done
-			return Task.CompletedTask;
+			return Done;
 		}
 
 		private async Task Commands_CommandErrored(CommandErrorEventArgs e)

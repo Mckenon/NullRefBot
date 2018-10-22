@@ -4,6 +4,7 @@ using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
 
 namespace NullRefBot.RPG {
+
 	public class ExperienceCommands : BaseCommandModule {
 		[Command("xp")]
 		public async Task DisplayExp( CommandContext c, DiscordUser user = null ) {
