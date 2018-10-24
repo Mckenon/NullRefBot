@@ -28,7 +28,7 @@ namespace NullRefBot.RPG {
 
 		static async Task<T> ExecuteAsync<T> ( RestRequest req ) where T : new() {
 			var client = new RestClient();
-			client.BaseUrl = new Uri( Instance.Config.DatabaseIP );
+			client.BaseUrl = new Uri( $"{Instance.Config.DatabaseIP}:{Instance.Config.DatabasePort}" );
 
 			var response = await client.ExecuteTaskAsync<T>( req );
 
