@@ -14,7 +14,7 @@ namespace NullRefBot.RPG {
 
 	public class EncounterCommands : BaseCommandModule {
 
-		[Command( "encounter" )]
+		[Command( "encounter" ), Hidden]
 		public async Task BeginEncounter ( CommandContext c ) {
 			await c.TriggerTypingAsync();
 
