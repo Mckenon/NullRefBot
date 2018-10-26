@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading.Tasks;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
+using Newtonsoft.Json;
 using NullRefBot.RPG;
 
 namespace NullRefBot.Commands
@@ -91,6 +93,33 @@ namespace NullRefBot.Commands
 			};
 
 			await ctx.RespondAsync(embed: embed);
+		}
+
+		[Command("xkcd")]
+		public async Task Xkcd(CommandContext ctx)
+		{
+			const string BASE_URL = "https://xkcd.com/info.0.json";
+			const string COMIC_URL_TEMPLATE = "http://xkcd.com/{0}/info.0.json";
+			using (WebClient wc = new WebClient())
+			{
+				string baseJson = await wc.DownloadStringTaskAsync(new Uri(BASE_URL));
+				dynamic baseJsonObject = JsonConvert.DeserializeObject(baseJson);
+				int random = RandomUtils.Range(0, (int)baseJsonObject.num);
+				string comicUrl = string.Format(COMIC_URL_TEMPLATE, random);
+				string comicJson = await wc.DownloadStringTaskAsync(new Uri(comicUrl));
+				dynamic comicJsonObject = JsonConvert.DeserializeObject(comicJson);
+
+				DiscordEmbed embed = new DiscordEmbedBuilder()
+				{
+					ImageUrl = comicJsonObject.img,
+					Title = comicJsonObject.title,
+					Footer = new DiscordEmbedBuilder.EmbedFooter()
+					{
+						Text = comicJsonObject.alt
+					}
+				};
+				await ctx.Channel.SendMessageAsync(embed: embed);
+			}
 		}
 	}
 }

@@ -11,6 +11,7 @@ namespace NullRefBot.Commands
 	public class Utilities : BaseCommandModule
 	{
 		[Command("lmgtfy")]
+		[Description("Did someone fail to google something? Help 'em out.")]
 		public async Task Lmgtfy(CommandContext ctx, [RemainingText]string thingToGoogle)
 		{
 			await ctx.TriggerTypingAsync();
@@ -31,7 +32,7 @@ namespace NullRefBot.Commands
 			await ctx.RespondAsync(embed: embed);
 		}
 
-		[Command("testlogroles"), RequirePermissions(Permissions.Administrator)]
+		[Command("testlogroles"), RequirePermissions(Permissions.Administrator), Hidden]
 		public async Task TestLogRoles(CommandContext ctx)
 		{
 			await ctx.TriggerTypingAsync();
