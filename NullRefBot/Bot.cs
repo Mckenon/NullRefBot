@@ -16,6 +16,7 @@ using Newtonsoft.Json;
 using NullRefBot.Commands;
 using NullRefBot.RPG;
 using NullRefBot.Utils;
+using RestSharp;
 
 namespace NullRefBot
 {
@@ -25,6 +26,7 @@ namespace NullRefBot
 		public CommandsNextExtension Commands;
 		public ConfigJson Config;
 		public ConfigRolesJson RolesConfig;
+		public RestClient RestClient;
 
 		public static DebugLogger Logger => Instance.Client.DebugLogger;
 		public static Bot Instance => instance ?? (instance = new Bot());
@@ -36,6 +38,8 @@ namespace NullRefBot
 
 		public async Task RunAsync()
 		{
+
+			RestClient = new RestClient();
 
 			string jsonString = "";
 			using (var fs = File.OpenRead("config.json"))
